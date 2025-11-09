@@ -1,0 +1,215 @@
+{
+    "Type": "prednet",
+    "Device": "cuda",
+    "Dataset": "H36Mso3N18Vel_DL",
+
+    "Dir": {
+        "data_path": "data/data_3d_h36m_expmap.npz",
+        "log_root": "results/prediction",
+        "trained_model_root": "results/prediction"
+    },
+
+
+    "Data": {
+        "t_his": 25,
+        "t_pred": 100,
+        "actions": "all",
+        "use_velocity": -1,
+        "local_coord": true,
+        "hip_zeros": false,
+        "frame_rate": 1,
+        "cali_subject": 6
+    },
+
+
+    "SavePoint":{
+        "checkpoints": "",
+        "last_epoch": "best", 
+        "checkpoints_gap": 1,
+        "max_checkpoints": 100,
+        "scalar_log_gap": 2
+    },
+
+
+    "Model": {
+        "GeneralSettings": {
+            "type": "seq2seq_velonly_distrib_V2setZerosDropoutDct",
+            "positional_embedding": false,
+            "normalize_embedding": {
+            	"enabled": false,
+            	"type": "", 
+            	"gaussian_path": "",
+            	"max_min_path": ""
+            },
+            "drop_coef": 0.1
+        },
+
+        "Flow": {
+            "hparams_path": "hparams",
+            "trained_model_root": "results/likelihood/H36Mso3N18VelOnly",
+            "trained_model_subdir": "trained_20250122_0813",
+            "trained_model_hparam": "conformal_dct_likelihood_V4_Velonly_S1_3.json",
+            "epoch_or_path": "best"
+        },
+
+        "RGCN": {
+            "Version": 4,
+            "FlowFollwer": false,
+
+            "GCN": {
+                "type": "linear",
+                "imc": [[18, 18]],
+                "parts_level": 1,
+                "skip_connect": [false],
+                "norm": "",
+                "activation": "LeakyReLU",
+                "enc_gcn": ""
+            },
+        
+            "RNN": {
+                "type": "LayerNormGRU",
+                "in_channel": 18,
+                "hidden_channels": [18, 18],
+                "num_layers": [1, 1],
+                "bias": [true, true],
+                "dropout": [0.4, 0.4],
+                "birectional": [false, false],
+                "skip_connect": false,
+                "norm": "",
+                "activation": "LeakyReLU"
+            }
+        }
+    },
+
+
+    "Train": {
+        "PhaseNums": 2,
+
+        "PhaseOne": { 
+            "Optim": {
+                "name": "adamW",
+                "warmup": 0,
+                "args": {
+                    "lr": 1e-3,
+                    "betas": [0.9, 0.999]
+                },
+                "schedule": {
+                    "name": "step",
+                    "args": {
+                        "step_size": 2,
+                        "gamma": 0.1
+                    }
+                }
+            },
+            "Train": {
+                "batch_size": 64,
+                "num_samples":12800,
+                "epochs": 6,
+                "max_grad_norm": 10,
+                "loss_and_weight": {
+                    "rotation_space":{
+                        "expmap_mae": 1.0
+                    },
+                    "latent_space":{
+                        "negative_log_likelihood": 0.1
+                    },
+                    "conformal_prediction_based_loss": {
+                        "variance_quantile_regression": 0.5
+                    }
+                },
+                "supervise_history": false,
+                "train_like_eval": false,
+                "train_part": "RNN",
+                "step_by_step": false,
+                "curriculum_iters": -1,
+                "random_prediction_horizon": false,
+                "conformal_loss_params": {
+                    "type": "stds", 
+                    "metric": "mae", 
+                    "epsilon": 0.25,
+                    "decay_type": "linear",
+                    "decay_cycle_size": 1000
+                },
+                "conformal_loss_quantile": [0.75, 0.25],
+                "conformal_loss_reborn": 1000
+            },
+            "Val": {
+                "batch_size": 512,
+                "num_samples": 102400
+            }        
+        },
+    
+        "PhaseTwo": { 
+            "Optim": {
+                "name": "adamW",
+                "warmup": 0,
+                "args": {
+                    "lr": 1e-3,
+                    "betas": [0.9, 0.999]
+                },
+                "schedule": {
+                    "name": "step",
+                    "args": {
+                        "step_size": 2,
+                        "gamma": 0.1
+                    }
+                }
+            },
+            "Train": {
+                "batch_size": 64,
+                "num_samples":12800,
+                "epochs": 6,
+                "max_grad_norm": 10,
+                "loss_and_weight": {
+                    "rotation_space":{
+                        "expmap_mae": 1.0
+                    },
+                    "latent_space":{
+                        "negative_log_likelihood": 0.1
+                    },
+                    "conformal_prediction_based_loss": {
+                        "variance_quantile_regression": 0.5
+                    },
+                    "likelihood_space":{
+                        "MLE": 5.0
+                    }
+                },
+                "supervise_history": false,
+                "train_like_eval": false,
+                "train_part": "total",
+                "step_by_step": false,
+                "curriculum_iters": -1,
+                "random_prediction_horizon": false,
+                "conformal_loss_params": {
+                    "type": "stds", 
+                    "metric": "mae", 
+                    "epsilon": 0.25,
+                    "decay_type": "linear",
+                    "decay_cycle_size": 1000
+                },
+                "conformal_loss_quantile": [0.75, 0.25],
+                "conformal_loss_reborn": 1000
+            },
+            "Val": {
+                "batch_size": 512,
+                "num_samples": 102400
+            }        
+        }
+    },
+
+
+    "Eval": {
+        "batch_size": 256,
+        "measures": {
+            "rotation_space":{
+                "expmap_mse": 1.0
+            },
+            "latent_space":{
+                "negative_log_likelihood": 1.0
+            },
+            "likelihood_space":{
+                "MLE": 1.0
+            }
+        }
+    }
+}

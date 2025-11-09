@@ -1,0 +1,94 @@
+{
+    "Type": "graph",
+    "Version": 5,
+    "Device": "cuda",
+    "Dataset": "AMASSVelOnly",
+
+    "Dir": {
+        "data_path": "data/AMASS",
+        "trained_model_root": "results/likelihood",
+        "log_root": "results/likelihood",
+        "sampling_root": "results/sampling"
+    },
+
+    "Flow" : {
+        "in_channel": 3,
+        "K": 3,
+        "depth": [2, 2, 2],
+        "imc":[[180, 288, 180], [60, 96, 60], [15, 24, 15]], 
+        "actnorm_scale": 1.0,
+        "flow_step": "v2",
+        "flow_coupling": "additive",
+        "flow_coupling_params": {
+            "couple_activation": "LeakyReLU",
+            "couple_last_activation": false,
+            "actnorm_activations": ["Tanh", "Default"]
+        },
+        "network_model": "GraphConvolution",
+        "distribution": "normal",
+        "partition": "bipartite4",
+        "squeeze": "squeeze4",
+        "restricted": true,
+        "n_pre": [5, 3],
+        "n_len": [15, 3]
+    },
+
+    "Data" : {
+        "t_his": 0,
+        "t_pred": 15,
+        "actions": "all",
+        "frame_rate": 2,
+        "cali_subject": 0.1
+    },
+
+    "Optim": {
+        "name": "adamW",
+        "warmup": 0,
+        "args": {
+            "lr": 1e-3,
+            "betas": [0.9, 0.999],
+            "eps": 1e-8
+        },
+        "schedule": {
+            "name": "plateau",
+            "args": {
+                "mode": "min",
+                "factor": 0.5,
+                "patience": 10,
+                "threshold": 0.02,
+                "cooldown": 10,
+                "min_lr": 1e-6
+            }
+        }
+    },
+
+    "Train": {
+        "batch_size": 1024,
+        "num_samples": 102400,
+        "epochs": 1000,
+        "last_epoch": 0,
+        "validation_log_gap": 1,
+        "sampling_gap": 1e9, 
+        "checkpoints_gap": 1,
+        "checkpoints": "",
+        "max_checkpoints": 100,
+        "scalar_log_gap": 2,
+        "max_grad_norm": 10,
+        "augmentation": 0,
+        "loss_and_weight":{
+            "likelihood_space":{
+                "MLE": 1.0
+            }
+        }
+    },
+    
+    "Val": {
+        "batch_size": 1024,
+        "num_samples": 204800,
+        "measures": {
+            "likelihood_space":{
+                "MLE": 1.0
+            }
+        }
+    }
+}

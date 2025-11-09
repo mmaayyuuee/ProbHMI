@@ -1,0 +1,189 @@
+{
+    "Type": "prednet",
+    "Device": "cuda",
+    "Dataset": "AMASSVel_DL",
+
+    "Dir": {
+        "data_path": "data/AMASS",
+        "log_root": "results/prediction",
+        "trained_model_root": "results/prediction"
+    },
+
+
+    "Data": {
+        "t_his": 30,
+        "t_pred": 120,
+        "actions": "all",
+        "frame_rate": 1,
+        "cali_subject": 0.1
+    },
+
+
+    "SavePoint":{
+        "checkpoints": "",
+        "last_epoch": 0, 
+        "checkpoints_gap": 1,
+        "max_checkpoints": 100,
+        "scalar_log_gap": 2
+    },
+
+
+    "Model": {
+        "GeneralSettings": {
+            "type": "seq2seq_velonly_distrib_V2setZerosDropoutDct",
+            "positional_embedding": false,
+            "normalize_embedding": {
+            	"enabled": false,
+            	"type": "", 
+            	"gaussian_path": "",
+            	"max_min_path": ""
+            },
+            "drop_coef": 0.5
+        },
+
+        "Flow": {
+            "hparams_path": "hparams",
+            "trained_model_root": "results/likelihood/AMASSVelOnly",
+            "trained_model_subdir": "trained_20250613_0339",
+            "trained_model_hparam": "dct_likelihood_V3_S3.json",
+            "epoch_or_path": "best"
+        },
+
+        "RGCN": {
+            "Version": 4,
+            "FlowFollwer": false,
+
+            "GCN": {
+                "type": "linear",
+                "imc": [[30, 30]],
+                "parts_level": 1,
+                "skip_connect": [false],
+                "norm": "",
+                "activation": "LeakyReLU",
+                "enc_gcn": ""
+            },
+        
+            "RNN": {
+                "type": "LayerNormGRU",
+                "in_channel": 30,
+                "hidden_channels": [30, 30],
+                "num_layers": [1, 1],
+                "bias": [true, true],
+                "dropout": [0.5, 0.5],
+                "birectional": [false, false],
+                "skip_connect": false,
+                "norm": "",
+                "activation": "LeakyReLU"
+            }
+        }
+    },
+
+
+    "Train": {
+        "PhaseNums": 2,
+    
+        "PhaseOne": { 
+            "Optim": {
+                "name": "adamW",
+                "warmup": 0,
+                "args": {
+                    "lr": 1e-3,
+                    "betas": [0.9, 0.999],
+                    "weight_decay": 0.25
+                },
+                "schedule": {
+                    "name": "step",
+                    "args": {
+                        "step_size": 2,
+                        "gamma": 0.1
+                    }
+                }
+            },
+            "Train": {
+                "batch_size": 512,
+                "num_samples": 5120000,
+                "epochs": 6,
+                "max_grad_norm": 10,
+                "loss_and_weight": {
+                    "rotation_space":{
+                        "expmap_mae": 1.0
+                    },
+                    "latent_space":{
+                        "negative_log_likelihood": 0.01
+                    }
+                },
+                "supervise_history": false,
+                "train_like_eval": false,
+                "train_part": "RNN",
+                "step_by_step": false,
+                "curriculum_iters": -1,
+                "random_prediction_horizon": false
+            },
+            "Val": {
+                "batch_size": 1024,
+                "num_samples": 102400
+            }        
+        },     
+
+        "PhaseTwo": { 
+            "Optim": {
+                "name": "adamW",
+                "warmup": 0,
+                "args": {
+                    "lr": 1e-4,
+                    "betas": [0.9, 0.999],
+                    "weight_decay": 0.1
+                },
+                "schedule": {
+                    "name": "step",
+                    "args": {
+                        "step_size": 2,
+                        "gamma": 0.1
+                    }
+                }
+            },
+            "Train": {
+                "batch_size": 512,
+                "num_samples": 5120000,
+                "epochs": 6,
+                "max_grad_norm": 10,
+                "loss_and_weight": {
+                    "rotation_space":{
+                        "expmap_mae": 1.0
+                    },
+                    "latent_space":{
+                        "negative_log_likelihood": 0.01
+                    },
+                    "likelihood_space":{
+                        "MLE": 1.0
+                    }
+                },
+                "supervise_history": false,
+                "train_like_eval": false,
+                "train_part": "total",
+                "step_by_step": false,
+                "curriculum_iters": -1,
+                "random_prediction_horizon": false
+            },
+            "Val": {
+                "batch_size": 1024,
+                "num_samples": 102400
+            }       
+        }
+    },
+
+    "Eval": {
+        "batch_size": 1024,
+        "measures": {
+            "rotation_space":{
+                "expmap_mse": 1.0
+            },
+            "latent_space":{
+                "negative_log_likelihood": 1.0
+            },
+            "likelihood_space":{
+                "MLE": 1.0
+            }
+        }
+    }
+}
